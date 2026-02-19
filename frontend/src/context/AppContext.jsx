@@ -14,8 +14,18 @@ function defaultTables(count=12){
     status: 'idle', // idle | occupied | cleaning | reserved
     startedAt: null,
     elapsedSec: 0,
-    currentSessionId: null
+    currentSessionId: null,
+    serviceRequestedAt: null,
+    activityLogs: []
   }))
+}
+
+function appendLog(table, message){
+  const logs = Array.isArray(table.activityLogs) ? table.activityLogs : []
+  return {
+    ...table,
+    activityLogs: [{ id: uuidv4(), message, timestamp: Date.now() }, ...logs].slice(0, 20)
+  }
 }
 
 export function AppProvider({children}){
@@ -63,25 +73,67 @@ export function AppProvider({children}){
   },[tables])
 
   function startTable(tableId){
-    setTables(prev=> prev.map(t=> t.id===tableId ? {
-      ...t,
-      status: 'occupied',
-      startedAt: Date.now(),
-      currentSessionId: uuidv4(),
-      elapsedSec: 0
-    } : t))
+    setTables(prev=> prev.map(t=> {
+      if(t.id!==tableId) return t
+      return appendLog({
+        ...t,
+        status: 'occupied',
+        startedAt: Date.now(),
+        currentSessionId: uuidv4(),
+        elapsedSec: 0
+      }, '开台并开始计时')
+    }))
     setSelectedTableId(tableId)
   }
 
   function stopTable(tableId){
-    setTables(prev=> prev.map(t=> t.id===tableId ? ({
-      ...t,
-      status: 'idle',
-      startedAt: null,
-      elapsedSec: 0,
-      currentSessionId: null
-    }) : t))
+    setTables(prev=> prev.map(t=> {
+      if(t.id!==tableId) return t
+      return appendLog({
+        ...t,
+        status: 'idle',
+        startedAt: null,
+        elapsedSec: 0,
+        currentSessionId: null,
+        serviceRequestedAt: null
+      }, '结账完成，桌位已空闲')
+    }))
     if(selectedTableId === tableId) setSelectedTableId(null)
+  }
+
+  function markTableCleaning(tableId){
+    setTables(prev=> prev.map(t=> {
+      if(t.id!==tableId) return t
+      return appendLog({
+        ...t,
+        status: 'cleaning',
+        startedAt: null,
+        elapsedSec: 0,
+        currentSessionId: null,
+        serviceRequestedAt: null
+      }, '已标记为清理中')
+    }))
+  }
+
+  function clearTableCleaning(tableId){
+    setTables(prev=> prev.map(t=> {
+      if(t.id!==tableId) return t
+      return appendLog({ ...t, status: 'idle' }, '清理完成，恢复为空闲')
+    }))
+  }
+
+  function requestTableService(tableId){
+    setTables(prev=> prev.map(t=> {
+      if(t.id!==tableId) return t
+      return appendLog({ ...t, serviceRequestedAt: Date.now() }, '已呼叫服务')
+    }))
+  }
+
+  function resolveTableService(tableId){
+    setTables(prev=> prev.map(t=> {
+      if(t.id!==tableId) return t
+      return appendLog({ ...t, serviceRequestedAt: null }, '服务请求已处理')
+    }))
   }
 
   function selectTable(id){ setSelectedTableId(id) }
@@ -300,6 +352,7 @@ export function AppProvider({children}){
     <AppContext.Provider value={{
       tables, setTables, startTable, stopTable, user, setUser, selectedTableId, selectTable,
       mergeTables, splitTable,
+      markTableCleaning, clearTableCleaning, requestTableService, resolveTableService,
       cart, addToCart, removeFromCart, updateCartQty, clearCart, getCartTotal, submitOrder,
       orders, setOrders,
       rates, settings, computeTableFeeForTable

@@ -15,6 +15,7 @@ function TableCard({t, onOpen, isMergedIntoAnother, computeFee}){
   if (isMerged) statusClass = 'bg-amber-50 opacity-60 ring-2 ring-amber-300'
   else if (isOccupied) statusClass = 'bg-red-50'
   else if (t.status === 'reserved') statusClass = 'bg-blue-50'
+  else if (t.status === 'cleaning') statusClass = 'bg-slate-100 ring-1 ring-slate-300'
 
   return (
     <div 
@@ -35,6 +36,9 @@ function TableCard({t, onOpen, isMergedIntoAnother, computeFee}){
             <div className="text-xs text-slate-600 mt-1">
               并入: {t.mergedWith.join(', ')}
             </div>
+          )}
+          {t.serviceRequestedAt && (
+            <div className="text-xs text-amber-600 mt-1">服务请求中</div>
           )}
         </div>
         <div className="flex gap-2">
